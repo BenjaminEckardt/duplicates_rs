@@ -36,7 +36,7 @@ fn main() {
 
     for (hash, paths) in results.iter() {
         if paths.len() > 1 {
-            println!("Found {} ocurrences:", paths.len());
+            println!("Found {} occurrences:", paths.len());
             for p in paths {
                 println!("Path: {}", p);
             }
