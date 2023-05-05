@@ -1,7 +1,7 @@
 [package]
 name = "duplicates_rs"
 version = "0.1.0"
-authors = ["Benjamin Eckardt <Benjamin.Eckardt@gmx.net>"]
+authors = ["Benjamin Eckardt <Benjamin.Eckardt@beneck.de>"]
 
 [dependencies]
 glob = "*"
