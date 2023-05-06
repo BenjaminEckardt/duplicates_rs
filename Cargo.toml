@@ -2,7 +2,9 @@
 name = "duplicates_rs"
 version = "0.1.0"
 authors = ["Benjamin Eckardt <Benjamin.Eckardt@beneck.de>"]
+edition = "2021"
 
 [dependencies]
 glob = "*"
-rust-crypto = "^0.2"
+md-5 = "0.10.5"
+base16ct = { version = "0.2.0", features = ["alloc"] }
