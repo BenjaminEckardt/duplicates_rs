@@ -1,14 +1,14 @@
 use md5::{Md5, Digest};
 use glob::glob;
 use std::collections::HashMap;
-use std::env;
 use std::fs::File;
 use std::io::Read;
+use clap::Parser;
 
 fn hash_content(reader: &mut dyn Read) -> String {
     let digest = {
         let mut hasher = Md5::new();
-        let mut buffer = vec![0; 1024 * 1024];
+        let mut buffer = vec![0; 1024];
         loop {
             let count = reader.read(&mut buffer).unwrap();
             if count == 0 { break }
@@ -19,10 +19,18 @@ fn hash_content(reader: &mut dyn Read) -> String {
     base16ct::lower::encode_string(&digest)
 }
 
-fn main() {
-    let pattern = env::args().nth(1).unwrap_or("./**/*".to_string());
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    /// The glob pattern to look for duplicates
+    #[arg(short = 'p', long = "pattern", default_value_t = String::from("./**/*"))]
+    pattern: String,
+}
 
-    glob(&pattern).unwrap().into_iter()
+fn main() {
+    let args = Args::parse();
+
+    glob(&args.pattern).unwrap()
         .map(|path_result| path_result.unwrap())
         .filter(|path| !path.is_dir())
         .map(|file_path| {
@@ -44,4 +52,18 @@ fn main() {
             }
             println!("Sha256 Hash: {}\n", hash);
         });
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // hash generated with https://www.md5hashgenerator.com/
+    #[test]
+    fn hash_content_should_hash_simple_reader_content() {
+        let mut reader = "asdf1234341!@#$asdf🥺".as_bytes();
+        let hash = hash_content(&mut reader);
+        assert_eq!(String::from("8526695f5313baed2e42434180636d66"), hash);
+    }
 }
