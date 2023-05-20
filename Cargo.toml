@@ -8,4 +8,6 @@ edition = "2021"
 base16ct = { version = "0.2.0", features = ["alloc"] }
 clap = { version = "4.0", features = ["derive"] }
 glob = "0.3.1"
+indicatif =  {version = "0.17.3", features = ["rayon"]}
 md-5 = "0.10.5"
+rayon = "1.7.0"

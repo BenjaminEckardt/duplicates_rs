@@ -3,7 +3,10 @@ use glob::glob;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
+use std::path::PathBuf;
 use clap::Parser;
+use rayon::prelude::*;
+use indicatif::ParallelProgressIterator;
 
 fn hash_content(reader: &mut dyn Read) -> String {
     let digest = {
@@ -30,14 +33,21 @@ struct Args {
 fn main() {
     let args = Args::parse();
 
-    glob(&args.pattern).unwrap()
-        .map(|path_result| path_result.unwrap())
-        .filter(|path| !path.is_dir())
+    let mut files: Vec<PathBuf> = glob(&args.pattern).unwrap()
+        .map(|glob_result| glob_result.unwrap())
+        .filter(|path| path.is_file()).collect();
+
+    files.sort_by(|a, b| a.metadata().unwrap().len().partial_cmp(&b.metadata().unwrap().len()).unwrap());
+
+    files.par_iter()
+        .progress()
         .map(|file_path| {
             let mut file = File::open(file_path.clone()).unwrap();
             let hex_hash = hash_content(&mut file);
             (hex_hash, file_path.to_str().unwrap().to_string())
         })
+        .collect::<Vec<(String, String)>>()
+        .into_iter()
         .fold(HashMap::new(), |mut result_map, (hash, path)| {
             let paths_for_hash = result_map.entry(hash).or_insert(vec![]);
             paths_for_hash.push(path);
