@@ -1,25 +1,44 @@
-use md5::{Md5, Digest};
-use glob::glob;
 use std::collections::HashMap;
+use std::error::Error;
 use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
-use clap::Parser;
-use rayon::prelude::*;
-use indicatif::ParallelProgressIterator;
+use std::str::FromStr;
 
-fn hash_content(reader: &mut dyn Read) -> String {
-    let digest = {
-        let mut hasher = Md5::new();
-        let mut buffer = vec![0; 1024];
-        loop {
-            let count = reader.read(&mut buffer).unwrap();
-            if count == 0 { break }
-            hasher.update(&buffer[..count]);
+use clap::Parser;
+use glob::glob;
+use indicatif::ParallelProgressIterator;
+use md5::{Digest, Md5};
+use rayon::prelude::*;
+use serde::Serialize;
+use serde_json::to_string as to_json;
+
+#[derive(Debug)]
+enum OutputFormat {
+    Human,
+    Json,
+}
+
+impl FromStr for OutputFormat {
+    type Err = Box<dyn Error>;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_ascii_lowercase().as_str() {
+            "human" => Ok(OutputFormat::Human),
+            "json" => Ok(OutputFormat::Json),
+            _ => Err(format!("Cannot map {s} to any output format").into()),
         }
-        hasher.finalize()
-    };
-    base16ct::lower::encode_string(&digest)
+    }
+}
+
+#[derive(Serialize)]
+struct FileHashEntry {
+    hash: String,
+    paths: Vec<String>,
+}
+
+impl FileHashEntry {
+    fn new(hash: String, paths: Vec<String>) -> FileHashEntry { FileHashEntry { hash, paths } }
 }
 
 #[derive(Parser, Debug)]
@@ -28,10 +47,15 @@ struct Args {
     /// The glob pattern to look for duplicates
     #[arg(short = 'p', long = "pattern", default_value_t = String::from("./**/*"))]
     pattern: String,
+
+    /// The desire output format
+    #[arg(short = 'o', long = "output", default_value_t = String::from("human"))]
+    output: String,
 }
 
 fn main() {
     let args = Args::parse();
+    let output_format: OutputFormat = OutputFormat::from_str(&args.output).unwrap();
 
     let mut files: Vec<PathBuf> = glob(&args.pattern).unwrap()
         .map(|glob_result| glob_result.unwrap())
@@ -39,7 +63,7 @@ fn main() {
 
     files.sort_by(|a, b| a.metadata().unwrap().len().partial_cmp(&b.metadata().unwrap().len()).unwrap());
 
-    files.par_iter()
+    let file_hash_entries: Vec<_> = files.par_iter()
         .progress()
         .map(|file_path| {
             let mut file = File::open(file_path.clone()).unwrap();
@@ -55,13 +79,37 @@ fn main() {
         })
         .into_iter()
         .filter(|(_hash, paths)| paths.len() > 1)
-        .for_each(|(hash, paths)| {
-            println!("Found {} occurrences:", paths.len());
-            for p in paths {
-                println!("Path: {}", p);
-            }
-            println!("Sha256 Hash: {}\n", hash);
-        });
+        .map(|(hash, paths)| FileHashEntry::new(hash, paths))
+        .collect();
+
+    match output_format {
+        OutputFormat::Json => println!("{}", to_json(&file_hash_entries).unwrap()),
+        OutputFormat::Human => print_human_output(file_hash_entries)
+    }
+}
+
+fn print_human_output(file_hash_entries: Vec<FileHashEntry>) {
+    for file_hash_entry in file_hash_entries {
+        println!("Found {} occurrences:", file_hash_entry.paths.len());
+        for p in file_hash_entry.paths {
+            println!("Path: {}", p);
+        }
+        println!("MD5 Hash: {}\n", file_hash_entry.hash);
+    }
+}
+
+fn hash_content(reader: &mut dyn Read) -> String {
+    let digest = {
+        let mut hasher = Md5::new();
+        let mut buffer = vec![0; 1024];
+        loop {
+            let count = reader.read(&mut buffer).unwrap();
+            if count == 0 { break; }
+            hasher.update(&buffer[..count]);
+        }
+        hasher.finalize()
+    };
+    base16ct::lower::encode_string(&digest)
 }
 
 

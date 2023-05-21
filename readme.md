@@ -7,5 +7,6 @@
 - [x] add unit tests
 - [x] add parallel processing capabilities
 - [x] add progress information
-- [ ] add other output formats
+- [x] add other output formats
+- [ ] add some logging
 - [ ] improve error handling
