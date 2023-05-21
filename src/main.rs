@@ -61,7 +61,7 @@ fn main() {
         .map(|glob_result| glob_result.unwrap())
         .filter(|path| path.is_file()).collect();
 
-    files.sort_by(|a, b| a.metadata().unwrap().len().partial_cmp(&b.metadata().unwrap().len()).unwrap());
+    sort_by_file_size_desc(&mut files);
 
     let file_hash_entries: Vec<_> = files.par_iter()
         .progress()
@@ -86,6 +86,10 @@ fn main() {
         OutputFormat::Json => println!("{}", to_json(&file_hash_entries).unwrap()),
         OutputFormat::Human => print_human_output(file_hash_entries)
     }
+}
+
+fn sort_by_file_size_desc(files: &mut Vec<PathBuf>) {
+    files.sort_by(|a, b| a.metadata().unwrap().len().partial_cmp(&b.metadata().unwrap().len()).unwrap());
 }
 
 fn print_human_output(file_hash_entries: Vec<FileHashEntry>) {
