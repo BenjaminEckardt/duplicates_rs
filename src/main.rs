@@ -88,7 +88,7 @@ fn main() {
     }
 }
 
-fn sort_by_file_size_desc(files: &mut Vec<PathBuf>) {
+fn sort_by_file_size_desc(files: &mut [PathBuf]) {
     files.sort_by(|a, b| a.metadata().unwrap().len().partial_cmp(&b.metadata().unwrap().len()).unwrap());
 }
 
